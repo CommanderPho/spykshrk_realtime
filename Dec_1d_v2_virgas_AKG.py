@@ -234,18 +234,18 @@ def main(path_base, rat_name, day, epoch, shift_amt, path_out, velthresh=4, use_
     print('Decoder started at %s'%str(time_started))
     print('Decoder finished at %s'%str(time_finished))
 
-    #cell 15.1
-    # save posterior and linear position - netcdf
-    posterior_file_name = os.path.join(path_out,  rat_name + '_' + str(day) + '_' + str(epoch) + '_shuffle_' + str(shift_amount) + '_posteriors_v2'+suffix+'.nc')
+    # #cell 15.1
+    # # save posterior and linear position - netcdf
+    # posterior_file_name = os.path.join(path_out,  rat_name + '_' + str(day) + '_' + str(epoch) + '_shuffle_' + str(shift_amount) + '_posteriors_v2'+suffix+'.nc')
 
-    post1 = posteriors.apply_time_event(rips, event_mask_name='ripple_grp')
-    post2 = post1.reset_index()
-    post3 = trodes2SS.convert_dan_posterior_to_xarray(post2, tetrodes, 
-                                            velocity_thresh_for_enc_dec, encode_settings, decode_settings, sungod_trans_mat, order, shift_amount)
-    post3.to_netcdf(posterior_file_name)
-    print('Saved netcdf posteriors to '+posterior_file_name)
+    # post1 = posteriors.apply_time_event(rips, event_mask_name='ripple_grp')
+    # post2 = post1.reset_index()
+    # post3 = trodes2SS.convert_dan_posterior_to_xarray(post2, tetrodes, 
+    #                                         velocity_thresh_for_enc_dec, encode_settings, decode_settings, sungod_trans_mat, order, shift_amount)
+    # post3.to_netcdf(posterior_file_name)
+    # print('Saved netcdf posteriors to '+posterior_file_name)
 
-    # to export linearized position to MatLab: again convert to xarray and then save as netcdf
+    # # to export linearized position to MatLab: again convert to xarray and then save as netcdf
 
     position_file_name = os.path.join(path_out, rat_name + '_' + str(day) + '_' + str(epoch) + '_shuffle_' + str(shift_amount) + '_linearposition_v2'+suffix+'.nc')
 
