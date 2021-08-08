@@ -27,7 +27,10 @@ def get_network_address(config):
     except KeyError:
         return None
 
-    return "tcp://" + address + ":" + port
+    if "tcp://" in address:
+        return address + ":" + port
+    else:
+        return "tcp://" + address + ":" + port
 
 def normalize_to_probability(distribution):
     '''Ensure the distribution integrates to 1 so that it is a probability

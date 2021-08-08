@@ -28,7 +28,11 @@ class MPIMessageTag(IntEnum):
     POSTERIOR = 22
     VEL_POS = 23
 
-    DATA_FOR_GUI = 30
+    GUI_POSTERIOR = 30
+    GUI_ARM_EVENTS = 31
+    GUI_REWARDS = 32
+    GUI_DROPPED_SPIKES = 33
+
 
 
 class RecordIDs(IntEnum):

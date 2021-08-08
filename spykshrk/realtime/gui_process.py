@@ -3,7 +3,7 @@ from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout,
                                QLineEdit, QGroupBox, QHBoxLayout, QDialog,
                                QPushButton, QLabel, QSpinBox, QSlider, QStatusBar,
-                               QFileDialog, QMessageBox, QRadioButton, QTextEdit)
+                               QFileDialog, QMessageBox, QRadioButton, QTextEdit, QStatusBar)
 from spykshrk.realtime.realtime_base import (RealtimeProcess, TerminateMessage,
                                 MPIMessageTag, TimeSyncInit, SetupComplete)
 from spykshrk.realtime.realtime_logging import PrintableMessage
@@ -860,6 +860,9 @@ class DecodingResultsWindow(QMainWindow):
         self.setWindowTitle("Decoder Output")
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.setCentralWidget(self.graphics_widget)
+
+        self.setStatusBar(QStatusBar())
+        self.statusBar().showMessage("No status bar data yet")
         
         self.parameters_dialog = Dialog(self, comm, rank, config)
         self.parameters_dialog.move(
@@ -893,8 +896,10 @@ class DecodingResultsWindow(QMainWindow):
         N = self.num_time_bins
         if self.config['clusterless_estimator'] == 'pp_decoder':
             self.n_states = 1
+            labels = self.config['pp_decoder']['state_labels']
         elif self.config['clusterless_estimator'] == 'pp_classifier':
             self.n_states = len(self.config['pp_classifier']['state_labels'])
+            labels = self.config['pp_classifier']['state_labels']
         self.posterior_buff = np.zeros((self.n_states, B))
         for ii, rank in enumerate(self.config["rank"]["decoder"]):
             self.decoder_rank_ind_mapping[rank] = ii
@@ -902,7 +907,6 @@ class DecodingResultsWindow(QMainWindow):
             self.state_datas[ii] = np.zeros((self.n_states, N))
 
         colors = ['#4c72b0','#dd8452', '#55a868'] 
-        labels = self.config['pp_classifier']['state_labels']
         # plot decoder lines
         for ii in range(num_plots):
             # top row - marginalized posterior
@@ -963,9 +967,24 @@ class DecodingResultsWindow(QMainWindow):
             tag=MPIMessageTag.COMMAND_MESSAGE)
         self.req_data = self.comm.Irecv(
             buf=self.posterior_buff,
-            tag=MPIMessageTag.DATA_FOR_GUI
+            tag=MPIMessageTag.GUI_POSTERIOR
         )
-        self.mpi_status = MPI.Status()
+        self.req_arm = self.comm.irecv(
+            tag=MPIMessageTag.GUI_ARM_EVENTS
+        )
+        self.req_rewards = self.comm.irecv(
+            tag=MPIMessageTag.GUI_REWARDS
+        )
+        self.req_dropped_spikes = self.comm.irecv(
+            tag=MPIMessageTag.GUI_DROPPED_SPIKES
+        )
+        self.mpi_status = {}
+        self.mpi_status["posterior"] = MPI.Status()
+
+        self.status_bar_data = {}
+        self.status_bar_data['arm_events'] = [0] * (len(self.config['encoder']['arm_coords']) - 1)
+        self.status_bar_data['dropped_spikes'] = [0] * (len(self.config['rank']['decoder']))
+        self.status_bar_data['rewards_delivered'] = 0
 
         self.ok_to_terminate = False
 
@@ -1004,12 +1023,34 @@ class DecodingResultsWindow(QMainWindow):
                 source=self.config["rank"]["supervisor"],
                 tag=MPIMessageTag.COMMAND_MESSAGE)
 
-        req_data_ready, data_message = self.req_data.test(status=self.mpi_status)
+        req_data_ready, data_message = self.req_data.test(status=self.mpi_status['posterior'])
         if req_data_ready:
-            self.process_new_data()
+            self.process_new_posterior()
             self.req_data = self.comm.Irecv(
                 buf=self.posterior_buff,
-                tag=MPIMessageTag.DATA_FOR_GUI
+                tag=MPIMessageTag.GUI_POSTERIOR
+            )
+
+        # arm events, rewards dispensed, dropped spikes
+        arm_ready, arm_data = self.req_arm.test()
+        if arm_ready:
+            self.process_arm_data(arm_data)
+            self.req_arm = self.comm.irecv(
+                tag=MPIMessageTag.GUI_ARM_EVENTS
+            )
+
+        reward_ready, reward_data = self.req_rewards.test()
+        if reward_ready:
+            self.process_reward_data(reward_data)
+            self.req_rewards = self.comm.irecv(
+                tag=MPIMessageTag.GUI_REWARDS
+            )
+
+        dropped_spikes_ready, dropped_spikes_data = self.req_dropped_spikes.test()
+        if dropped_spikes_ready:
+            self.process_dropped_spikes(dropped_spikes_data)
+            self.req_dropped_spikes = self.comm.irecv(
+                tag=MPIMessageTag.GUI_DROPPED_SPIKES
             )
 
         if self.elapsed_timer.elapsed() > self.refresh_msec:
@@ -1046,8 +1087,8 @@ class DecodingResultsWindow(QMainWindow):
             #     kind="information"
             # )
 
-    def process_new_data(self):
-        sender = self.mpi_status.source
+    def process_new_posterior(self):
+        sender = self.mpi_status['posterior'].source
         ind = self.decoder_rank_ind_mapping[sender]
         np.nansum(
             self.posterior_buff,
@@ -1057,6 +1098,37 @@ class DecodingResultsWindow(QMainWindow):
 
         self.state_datas[ind][:, self.state_datas_ind[ind]] = np.nansum(self.posterior_buff, axis=1)
         self.state_datas_ind[ind] = (self.state_datas_ind[ind] + 1) % self.num_time_bins
+
+    def process_arm_data(self, arm_data):
+
+        for ii, num_events in enumerate(arm_data):
+            self.status_bar_data['arm_events'][ii] = num_events
+        self.update_status_bar()
+
+    def process_reward_data(self, reward_data):
+
+        self.status_bar_data['rewards_delivered'] = reward_data
+        self.update_status_bar()
+        
+    def process_dropped_spikes(self, dropped_spikes_data):
+
+        sender = dropped_spikes_data[0]
+        ind = self.decoder_rank_ind_mapping[sender]
+        self.status_bar_data['dropped_spikes'][ind] = dropped_spikes_data[1]
+        self.update_status_bar()
+
+    def update_status_bar(self):
+
+        sb_string = ""
+        for ii, num_events in enumerate(self.status_bar_data['arm_events']):
+            sb_string += f"Arm {ii}: {num_events}, "
+
+        for ii, dropped_spikes in enumerate(self.status_bar_data['dropped_spikes']):
+            sb_string += f"Dropped Spikes (dec. {ii}): {dropped_spikes}, "
+
+        sb_string += f"Num Rewards: {self.status_bar_data['rewards_delivered']}"
+
+        self.statusBar().showMessage(sb_string)
 
     def update_data(self):
         for ii in range(len(self.plots)):
