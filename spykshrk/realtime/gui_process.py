@@ -1124,7 +1124,7 @@ class DecodingResultsWindow(QMainWindow):
             sb_string += f"Arm {ii}: {num_events}, "
 
         for ii, dropped_spikes in enumerate(self.status_bar_data['dropped_spikes']):
-            sb_string += f"Dropped Spikes (dec. {ii}): {dropped_spikes}, "
+            sb_string += f"Dropped Spikes (dec. {ii}): {dropped_spikes:.3f}%, "
 
         sb_string += f"Num Rewards: {self.status_bar_data['rewards_delivered']}"
 

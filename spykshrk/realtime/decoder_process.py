@@ -1709,7 +1709,7 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
             if self.decoded_spike_counter > 0 and self.buff_ind == 0:
                 # count number of 0's in last column, add this to dropped spike count
                 self.dropped_spikes += (self.spike_buffer_size - np.sum(self.decoded_spike_array[:,-1], dtype=int))
-                self.gui_send_interface.send_dropped_spikes(self.dropped_spikes)
+                self.gui_send_interface.send_dropped_spikes(self.dropped_spikes/self.decoded_spike_counter*100)
                 # NOTE: we are not yet saving the dropped spikes!
                 # can put dan's saving function here and loop through all the dropped spikes - too slow??
                 missed_spike_array = self.decoded_spike_array[self.decoded_spike_array[:,-1] == 0]
