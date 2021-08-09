@@ -508,7 +508,12 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         self.post_sum_sliding_window = self.config['ripple_conditioning']['post_sum_sliding_window']
         self.no_ripple_time_bin = 0
         self.replay_target_arm = self.config['ripple_conditioning']['replay_target_arm']
-        self.replay_non_target_arm = self.config['ripple_conditioning']['replay_non_target_arm']
+        # use target to define non target arm - works for 2 arms
+        if self.replay_target_arm == 1:
+            self.replay_non_target_arm = 2
+        elif self.replay_target_arm == 2:
+            self.replay_non_target_arm = 1
+        #self.replay_non_target_arm = self.config['ripple_conditioning']['replay_non_target_arm']
         #self.posterior_arm_sum = np.zeros((1,9))
         self.posterior_arm_sum = np.zeros((9,))
         self.target_sum_array_1 = np.zeros((self.post_sum_sliding_window,))
@@ -965,24 +970,26 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
 
         record_head_direction_stim = False
         
-        if self.decoder_1_count % 200 == 0:
-            print('angle buffer',is_within_angle_range,'angle diff',abs(angle - angle_well_2),
-                'target',angle_well_2,flush=True)
+        #if self.decoder_1_count % 200 == 0:
+        #    print('angle buffer',is_within_angle_range,'angle diff',abs(angle - angle_well_2),
+        #        'target',angle_well_2,flush=True)
+            #print('angle buffer',is_within_angle_range,'angle diff',abs(angle - angle_well_1),
+            #    'target',angle_well_1,flush=True)
 
         # this will only work if the angles to the wells +/- the acceptable angle range
         # do not overlap! otherwise we could end up with a situation where the animal's
         # head direction is detected to be pointing to multiple wells
-        #if (is_within_angle_range and is_in_center_well_proximity and
-        #    abs(angle - angle_well_1) <= self.to_well_angle_range):
-        #    self.head_direction_stim_time = time.time()
+        # if (is_within_angle_range and is_in_center_well_proximity and
+        #     abs(angle - angle_well_1) <= self.to_well_angle_range):
+        #     self.head_direction_stim_time = time.time()
             
-        #    print('head direction event arm 1',angle,
-        #            np.around(bin_timestamp/30/1000,decimals=2))
-        #    if self.taskState == 2:
-        #        networkclient.send_statescript_shortcut_message(14)
-        #        self.class_log.info("Statescript trigger for well 1")
-        #    well = 1
-        #    record_head_direction_stim = True
+        #     print('head direction event arm 1',angle,
+        #             np.around(bin_timestamp/30/1000,decimals=2))
+        #     if self.taskState == 2:
+        #         networkclient.send_statescript_shortcut_message(14)
+        #         self.class_log.info("Statescript trigger for well 1")
+        #     well = 1
+        #     record_head_direction_stim = True
 
         # if (is_within_angle_range and is_in_center_well_proximity and
         #    abs(angle - angle_well_2) <= self.to_well_angle_range):

@@ -1675,6 +1675,14 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
         # calculate max position of posterior
         self.posterior_max = posterior_1d.argmax()
 
+        # hard code last 4 bins of each arm - this works for 2 arm version of task
+
+        if self.replay_target_arm == 1:
+            # set target and offtarget
+        elif self.replay_target_arm == 2:
+            #set target and offtarget
+
+        #comment out these lines
         # calculate sum of target segment
         self.posterior_sum_target = posterior_1d[self.config['ripple_conditioning']['replay_target'][0]:
                                             self.config['ripple_conditioning']['replay_target'][1] + 1].sum()
@@ -1966,13 +1974,13 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
                     np.arctan2(
                         pos_data.y2 - pos_data.y,
                         pos_data.x2 - pos_data.x))
-                angle_well_1 = np.random.choice([108])
+                angle_well_1 = np.random.choice([120])
                     #(180/np.pi) *
                     #np.arctan2(
                     #    self.well_1_y - pos_data.y,
                     #    self.well_1_x - pos_data.x))
                     
-                angle_well_2 = np.random.choice([72])
+                angle_well_2 = np.random.choice([60])
                     #(180/np.pi) *
                     #np.arctan2(
                     #    self.well_2_y - pos_data.y,
