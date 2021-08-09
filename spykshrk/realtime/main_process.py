@@ -155,6 +155,19 @@ class StimDeciderMPISendInterface(realtime_base.RealtimeMPIClass):
             self.comm.send(obj=message, dest=self.config['rank']['supervisor'],
                            tag=realtime_base.MPIMessageTag.COMMAND_MESSAGE)
 
+    # events should be a list
+    def send_arm_events(self, events):
+        self.comm.send(
+            events,
+            dest=self.config['rank']['gui'],
+            tag=realtime_base.MPIMessageTag.GUI_ARM_EVENTS)
+
+    def send_rewards_dispensed(self, num_rewards):
+        self.comm.send(
+            num_rewards,
+            dest=self.config['rank']['gui'],
+            tag=realtime_base.MPIMessageTag.GUI_REWARDS)
+
 
 class StimDeciderMPIRecvInterface(realtime_base.RealtimeMPIClass):
     def __init__(self, comm: MPI.Comm, rank, config, stim_decider, networkclient):
@@ -666,6 +679,8 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         self.head_direction_lockout_time = self.config['head_direction']['lockout_time']
         self.head_direction_stim_time = 0
 
+        self.num_rewards = 0
+
         # if self.config['datasource'] == 'trodes':
         #    self.networkclient = MainProcessClient("SpykshrkMainProc", config['trodes_network']['address'],config['trodes_network']['port'], self.config)
         # self.networkclient.initializeHardwareConnection()
@@ -818,10 +833,14 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         #self.shortcut_message_arm = np.argwhere(self.norm_posterior_arm_sum>self.posterior_arm_threshold)[0][0]
         self.shortcut_message_arm = arm
 
+        # TODO: refactor to use array or dictionary of counters rather than individual variables
         if self.taskState == 2 and self.shortcut_message_arm == 1 and self.linearized_position<8:
             self.arm1_replay_counter += 1
+            self.send_interace.send_arm_events([0, self.arm1_replay_counter, self.arm2_replay_counter])
         elif self.taskState == 2 and self.shortcut_message_arm == 2 and self.linearized_position<8:
             self.arm2_replay_counter += 1
+            self.send_interace.send_arm_events([0, self.arm1_replay_counter, self.arm2_replay_counter])
+        # TODO: only send arms that are being used
         elif self.taskState == 2 and self.shortcut_message_arm == 3 and self.linearized_position<8:
             self.arm3_replay_counter += 1
         elif self.taskState == 2 and self.shortcut_message_arm == 4 and self.linearized_position<8:
@@ -859,6 +878,8 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
                     # NOTE: we can now replace this with the actual shortcut message!
                     networkclient.send_statescript_shortcut_message(14)
                     print('replay conditoning: statescript trigger 14')
+                    self.num_rewards += 1
+                    self.send_interface.send_rewards_dispensed(self.num_rewards)
 
                     # old statescript message
                     # note: statescript can only execute one function at a time, so trigger function 15 and set replay_arm variable
