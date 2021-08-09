@@ -836,10 +836,10 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         # TODO: refactor to use array or dictionary of counters rather than individual variables
         if self.taskState == 2 and self.shortcut_message_arm == 1 and self.linearized_position<8:
             self.arm1_replay_counter += 1
-            self.send_interace.send_arm_events([0, self.arm1_replay_counter, self.arm2_replay_counter])
+            self._send_interface.send_arm_events([0, self.arm1_replay_counter, self.arm2_replay_counter])
         elif self.taskState == 2 and self.shortcut_message_arm == 2 and self.linearized_position<8:
             self.arm2_replay_counter += 1
-            self.send_interace.send_arm_events([0, self.arm1_replay_counter, self.arm2_replay_counter])
+            self._send_interface.send_arm_events([0, self.arm1_replay_counter, self.arm2_replay_counter])
         # TODO: only send arms that are being used
         elif self.taskState == 2 and self.shortcut_message_arm == 3 and self.linearized_position<8:
             self.arm3_replay_counter += 1
@@ -879,7 +879,7 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
                     networkclient.send_statescript_shortcut_message(14)
                     print('replay conditoning: statescript trigger 14')
                     self.num_rewards += 1
-                    self.send_interface.send_rewards_dispensed(self.num_rewards)
+                    self._send_interface.send_rewards_dispensed(self.num_rewards)
 
                     # old statescript message
                     # note: statescript can only execute one function at a time, so trigger function 15 and set replay_arm variable
