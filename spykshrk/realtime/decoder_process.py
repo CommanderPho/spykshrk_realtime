@@ -1679,8 +1679,10 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
 
         if self.replay_target_arm == 1:
             # set target and offtarget
+            pass
         elif self.replay_target_arm == 2:
             #set target and offtarget
+            pass
 
         #comment out these lines
         # calculate sum of target segment
