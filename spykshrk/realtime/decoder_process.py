@@ -214,9 +214,9 @@ class DecoderGuiSendInterface(realtime_base.RealtimeMPIClass):
             dest=self.config["rank"]["gui"],
             tag=MPIMessageTag.GUI_POSTERIOR)
 
-    def send_dropped_spikes(self, num_dropped_spikes):
-        self.comm.send(
-            [self.rank, num_dropped_spikes],
+    def send_dropped_spikes(self, dropped_spikes_pct):
+        self.comm.Send(
+            np.array([self.rank, dropped_spikes_pct], dtype=np.float64),
             dest=self.config["rank"]["gui"],
             tag=MPIMessageTag.GUI_DROPPED_SPIKES)
 

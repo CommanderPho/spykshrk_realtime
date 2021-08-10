@@ -969,21 +969,27 @@ class DecodingResultsWindow(QMainWindow):
             buf=self.posterior_buff,
             tag=MPIMessageTag.GUI_POSTERIOR
         )
-        self.req_arm = self.comm.irecv(
+        self.arm_buffer = np.zeros(
+            len(self.config['encoder']['arm_coords']),
+            dtype=np.int)
+        self.req_arm = self.comm.Irecv(
+            buf=self.arm_buffer,
             tag=MPIMessageTag.GUI_ARM_EVENTS
         )
         self.req_rewards = self.comm.irecv(
             tag=MPIMessageTag.GUI_REWARDS
         )
-        self.req_dropped_spikes = self.comm.irecv(
+        self.dropped_spikes_buffer = np.zeros(2, dtype=np.float64)
+        self.req_dropped_spikes = self.comm.Irecv(
+            buf=self.dropped_spikes_buffer,
             tag=MPIMessageTag.GUI_DROPPED_SPIKES
         )
         self.mpi_status = {}
         self.mpi_status["posterior"] = MPI.Status()
 
         self.status_bar_data = {}
-        self.status_bar_data['arm_events'] = [0] * (len(self.config['encoder']['arm_coords']) - 1)
-        self.status_bar_data['dropped_spikes'] = [0] * (len(self.config['rank']['decoder']))
+        self.status_bar_data['arm_events'] = [0] * len(self.config['encoder']['arm_coords'])
+        self.status_bar_data['dropped_spikes'] = [0] * len(self.config['rank']['decoder'])
         self.status_bar_data['rewards_delivered'] = 0
 
         self.ok_to_terminate = False
@@ -1032,10 +1038,11 @@ class DecodingResultsWindow(QMainWindow):
             )
 
         # arm events, rewards dispensed, dropped spikes
-        arm_ready, arm_data = self.req_arm.test()
+        arm_ready = self.req_arm.Test()
         if arm_ready:
-            self.process_arm_data(arm_data)
-            self.req_arm = self.comm.irecv(
+            self.process_arm_data(self.arm_buffer)
+            self.req_arm = self.comm.Irecv(
+                buf=self.arm_buffer,
                 tag=MPIMessageTag.GUI_ARM_EVENTS
             )
 
@@ -1046,10 +1053,11 @@ class DecodingResultsWindow(QMainWindow):
                 tag=MPIMessageTag.GUI_REWARDS
             )
 
-        dropped_spikes_ready, dropped_spikes_data = self.req_dropped_spikes.test()
+        dropped_spikes_ready = self.req_dropped_spikes.Test()
         if dropped_spikes_ready:
-            self.process_dropped_spikes(dropped_spikes_data)
-            self.req_dropped_spikes = self.comm.irecv(
+            self.process_dropped_spikes(self.dropped_spikes_buffer)
+            self.req_dropped_spikes = self.comm.Irecv(
+                buf=self.dropped_spikes_buffer,
                 tag=MPIMessageTag.GUI_DROPPED_SPIKES
             )
 
@@ -1112,7 +1120,7 @@ class DecodingResultsWindow(QMainWindow):
         
     def process_dropped_spikes(self, dropped_spikes_data):
 
-        sender = dropped_spikes_data[0]
+        sender = int(dropped_spikes_data[0])
         ind = self.decoder_rank_ind_mapping[sender]
         self.status_bar_data['dropped_spikes'][ind] = dropped_spikes_data[1]
         self.update_status_bar()
