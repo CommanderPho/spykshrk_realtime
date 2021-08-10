@@ -157,8 +157,8 @@ class StimDeciderMPISendInterface(realtime_base.RealtimeMPIClass):
 
     # events should be a list
     def send_arm_events(self, events):
-        self.comm.send(
-            events,
+        self.comm.Send(
+            np.array(events, dtype=np.int),
             dest=self.config['rank']['gui'],
             tag=realtime_base.MPIMessageTag.GUI_ARM_EVENTS)
 
