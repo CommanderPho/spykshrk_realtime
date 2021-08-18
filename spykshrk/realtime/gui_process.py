@@ -1142,7 +1142,7 @@ class DecodingResultsWindow(QMainWindow):
     def update_data(self):
         for ii in range(len(self.plots)):
             self.posterior_datas[ii][np.isnan(self.posterior_datas[ii])] = 0
-            self.images[ii].setImage(self.posterior_datas[ii].T * 255)
+            self.images[ii].setImage(self.posterior_datas[ii].T * 255, levels=[0, 255])
             self.state_datas[ii][np.isnan(self.state_datas[ii])] = 0
             
             for state_ind in range(self.n_states):
