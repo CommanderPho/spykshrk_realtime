@@ -717,8 +717,10 @@ class PointProcessDecoder(rt_logging.LoggingClass):
         self.likelihood = global_prob_no
 
         # Compute posterior for no spike
-        self.posterior = self.likelihood * (
-            self.transition_mat @ self.prev_posterior)
+        #self.posterior = self.likelihood * (
+        #    self.transition_mat @ self.prev_posterior)
+        # NEW: no transition matrix
+        self.posterior = self.likelihood 
         # Normalize
         self.posterior = self.posterior / self.posterior.sum()
 
@@ -788,8 +790,11 @@ class PointProcessDecoder(rt_logging.LoggingClass):
 
         # Compute posterior
         # MEC: switch to nansum
-        self.posterior = self.likelihood * \
-            (self.transition_mat @ self.prev_posterior)
+        #self.posterior = self.likelihood * \
+        #    (self.transition_mat @ self.prev_posterior)
+        # NEW: no transition matrix
+        self.posterior = self.likelihood 
+
         #self.posterior = self.likelihood * np.nansum(self.transition_mat * self.prev_posterior,axis=1)
         # Normalize
         # MEC: switch to nansum
@@ -1740,7 +1745,7 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
             self.decoded_spike_counter += 1
 
             self.msg_counter += 1
-            if self.msg_counter % 1000 == 0:
+            if self.msg_counter % 5000 == 0:
                 self.class_log.debug(
                     'Received {} decoded messages.'.format(self.msg_counter))
             #print('spike timestamp',spike_dec_msg.timestamp)
@@ -1762,8 +1767,10 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
             self.ub = self.decoder_timestamp - (self.decoder_bin_delay-2)*self.time_bin_size
 
             if self.lfp_timekeeper_counter % 1000 == 0:
+                print(' ')
                 print(self.rank,'total spikes:',self.decoded_spike_counter,
                     'dropped spikes:',self.dropped_spikes, 'duplicated spikes:',self.duplicate_spikes)
+                print(' ')
                 #print('ripple tet',self.config['trodes_network']['ripple_tetrodes'][0])
                 #print(self.spike_buffer_size, self.decoded_spike_array[:,-1].sum())
                 #print(self.decoded_spike_array[:,-1])
@@ -1976,13 +1983,15 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
                     np.arctan2(
                         pos_data.y2 - pos_data.y,
                         pos_data.x2 - pos_data.x))
-                angle_well_1 = np.random.choice([120])
+                # 120 is arm 2
+                angle_well_1 = np.random.choice([130])
                     #(180/np.pi) *
                     #np.arctan2(
                     #    self.well_1_y - pos_data.y,
                     #    self.well_1_x - pos_data.x))
                     
-                angle_well_2 = np.random.choice([60])
+                # 60 is arm 1    
+                angle_well_2 = np.random.choice([70])
                     #(180/np.pi) *
                     #np.arctan2(
                     #    self.well_2_y - pos_data.y,
@@ -2129,7 +2138,7 @@ class BayesianDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
                 pass
 
             self.msg_counter += 1
-            if self.msg_counter % 1000 == 0:
+            if self.msg_counter % 50000 == 0:
                 self.class_log.debug(
                     'Received {} decoded messages.'.format(self.msg_counter))
 

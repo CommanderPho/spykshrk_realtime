@@ -22,7 +22,7 @@
 
     "files": {
         "output_dir": "/media/lorenlab/84fc44d3-77e1-4289-a1bc-dc9525326ee9/spykshrk_output",
-        "prefix": "20210809_george_04_r3",
+        "prefix": "20210817_george_06_r3",
         "rec_postfix": "bin_rec",
         "profile_postfix": "pstats",
         "timing_postfix": "timing",
@@ -47,10 +47,10 @@
         "previous_spike_count_avg": 1.312,
         "previous_spike_count_std": 0.931,
         "number_of_decoders": 1,
-        "replay_target_arm": 1,
-        "replay_non_target_arm": [2],
-        "replay_target": [20,24],
-        "replay_offtarget": [36,40],
+        "replay_target_arm": 2,
+        "replay_non_target_arm": [1],
+        "replay_target": [36,40],
+        "replay_offtarget": [20,24],
         "target_arm_position": [0,40],
         "condition_rip_thresh": 100,
         "shortcut_msg_lockout": 60000,
@@ -128,15 +128,15 @@
             "std": 5
         },
         "vel": 10,
-        "spk_amp": 125,
+        "spk_amp": 150,
         "noise_max_amp": 1500,
         "dead_channels": {
-            " 1 ": [0],
-            " 23 ": [3],
-            " 21 ": [1,3],
-            " 25 ": [3],
-            " 27 ": [0,2],
-            " 49 ": [3]
+            "1": [0],
+            "23": [3],
+            "21": [1,3],
+            "25": [3],
+            "27": [0,2],
+            "49": [3]
         },
         "occupancy": [[0]],
         "arm_coords": [[0,8],[13,24],[29,40]],

@@ -876,6 +876,7 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
                     print('number tets after likelihood filter',np.unique(tetrode_ids).shape[0])
 
                     # NOTE: we can now replace this with the actual shortcut message!
+                    # turn off for head direction feedback
                     networkclient.send_statescript_shortcut_message(14)
                     print('replay conditoning: statescript trigger 14')
                     self.num_rewards += 1
@@ -984,7 +985,7 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         #     self.head_direction_stim_time = time.time()
             
         #     print('head direction event arm 1',angle,
-        #             np.around(bin_timestamp/30/1000,decimals=2))
+        #              np.around(bin_timestamp/30/1000,decimals=2), 'target is:',angle_well_1)
         #     if self.taskState == 2:
         #         networkclient.send_statescript_shortcut_message(14)
         #         self.class_log.info("Statescript trigger for well 1")
@@ -992,23 +993,23 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         #     record_head_direction_stim = True
 
         # if (is_within_angle_range and is_in_center_well_proximity and
-        #    abs(angle - angle_well_2) <= self.to_well_angle_range):
-        #    self.head_direction_stim_time = time.time()
+        #     abs(angle - angle_well_2) <= self.to_well_angle_range):
+        #     self.head_direction_stim_time = time.time()
             
-        #    print('head direction event arm 2',angle,
-        #         np.around(bin_timestamp/30/1000,decimals=2))
-        #    if self.taskState == 2:
-        #        networkclient.send_statescript_shortcut_message(14)
-        #        self.class_log.info("Statescript trigger for well 2")
-        #    well = 2
-        #    record_head_direction_stim = True
+        #     print('head direction event arm 2',angle,
+        #         np.around(bin_timestamp/30/1000,decimals=2), 'target is:',angle_well_2)
+        #     if self.taskState == 2:
+        #         networkclient.send_statescript_shortcut_message(14)
+        #         self.class_log.info("Statescript trigger for well 2")
+        #     well = 2
+        #     record_head_direction_stim = True
 
-        if record_head_direction_stim:
-            self.write_record(
-                realtime_base.RecordIDs.STIM_HEAD_DIRECTION, bin_timestamp, well, raw_x, raw_y,
-                raw_x2, raw_y2, angle, angle_well_1, angle_well_2, self.to_well_angle_range,
-                self.within_angle_range, dist, self.max_center_well_dist_head, 
-                self.min_duration_head_angle, self.head_direction_lockout_time)
+        # if record_head_direction_stim:
+        #     self.write_record(
+        #         realtime_base.RecordIDs.STIM_HEAD_DIRECTION, bin_timestamp, well, raw_x, raw_y,
+        #         raw_x2, raw_y2, angle, angle_well_1, angle_well_2, self.to_well_angle_range,
+        #         self.within_angle_range, dist, self.max_center_well_dist_head, 
+        #         self.min_duration_head_angle, self.head_direction_lockout_time)
         
 
     # MEC: this function sums the posterior during each ripple, then sends shortcut message

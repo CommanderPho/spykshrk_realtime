@@ -492,7 +492,7 @@ class RStarEncoderManager(realtime_base.BinaryRecordBaseWithTiming):
                     #if abs(self.current_vel) >= self.config['encoder']['vel'] and max(amp_marks)>self.config['encoder']['spk_amp']+50:
                     if (abs(self.current_vel) >= self.velocity_threshold and self.taskState == 1
                         and not self.config['ripple_conditioning']['load_encoding']):
-                        if self.spk_counter % 2000 == 0:
+                        if self.spk_counter % 5000 == 0:
                             print('added',self.spk_counter,'spikes to tree in tet',datapoint.elec_grp_id)
                             #print('number of noise events detected:',self.count_noise_events)
 
@@ -502,7 +502,7 @@ class RStarEncoderManager(realtime_base.BinaryRecordBaseWithTiming):
                         #        datapoint.elec_grp_id,datatype=datatypes.Datatypes.SPIKES, label='spk_enc')
                         pass
 
-                if self.spk_counter % 1000 == 0:
+                if self.spk_counter % 10000 == 0:
                     self.class_log.debug('Received {} spikes.'.format(self.spk_counter))
 
         msgs = self.pos_interface.__next__()
@@ -563,7 +563,7 @@ class RStarEncoderManager(realtime_base.BinaryRecordBaseWithTiming):
                     #print('encoder side current vel: ',self.current_vel)
                     encoder.update_covariate(self.current_pos,self.current_vel,self.taskState)
 
-                if self.pos_counter % 1000 == 0:
+                if self.pos_counter % 5000 == 0:
                     self.class_log.info('Received {} pos datapoints.'.format(self.pos_counter))
     
     def save_data(self):
