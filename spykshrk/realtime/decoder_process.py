@@ -678,8 +678,8 @@ class PointProcessDecoder(rt_logging.LoggingClass):
             #self.occ = np.asarray(self.config['encoder']['occupancy'])[0]
             #self.occ = self.occ.astype('float64')
             #self.apply_no_anim_boundary(self.pos_bins_1, self.arm_coords, self.occ, np.nan)
-            self.occ = np.load('/tmp/occupancy1.npy')
-            print('loaded decoder occupancy from tet 1')
+            self.occ = np.load('/tmp/occupancy2.npy')
+            print('loaded decoder occupancy from tetrode 2')
             self.pos_counter += 1
 
         return self.occ
@@ -1153,8 +1153,8 @@ class ClusterlessEstimator(rt_logging.LoggingClass):
             #self.occ = np.asarray(self.config['encoder']['occupancy'])[0]
             #self.occ = self.occ.astype('float64')
             #self.apply_no_anim_boundary(self.pos_bins_1, self.arm_coords, self.occ, np.nan)
-            self.occ = np.load('/tmp/occupancy1.npy')
-            print('loaded decoder occupancy from tet 1')
+            self.occ = np.load('/tmp/occupancy2.npy')
+            print('loaded decoder occupancy from tetrode 2')
             self.pos_counter += 1
 
         return self.occ
@@ -1595,6 +1595,7 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
         # 7-2-19, added spike count for each decoding bin
         self.ripple_thresh_decoder = False
         self.replay_target_arm = self.config['ripple_conditioning']['replay_target_arm']
+        self.instructive = self.config['ripple_conditioning']['instructive']
         self.posterior_arm_sum = np.zeros((1, 9))
         self.ripple_number = 0
         self.spike_timestamp = 0
@@ -1622,6 +1623,8 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
         self.posterior_max = 0
         self.posterior_sum_target = 0
         self.posterior_sum_offtarget = 0
+        self.posterior_sum_target_base = 0
+        self.posterior_sum_offtarget_base = 0
 
         self.spike_count = 0
         self.enc_cred_int_array = [0] * 10
@@ -1682,20 +1685,38 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
 
         # hard code last 4 bins of each arm - this works for 2 arm version of task
 
-        if self.replay_target_arm == 1:
-            # set target and offtarget
-            pass
-        elif self.replay_target_arm == 2:
-            #set target and offtarget
-            pass
+        # use random number to choose target arm, then send to main process
+
+        # calculate sum target and offtarget with no input from config file
+        # hard code as arm1: target arm2: offtarget for instructive task
+        if self.instructive:
+            self.posterior_sum_target = posterior_1d[20:25].sum()
+            self.posterior_sum_offtarget = posterior_1d[36:41].sum()
+            self.posterior_sum_target_base = posterior_1d[13:18].sum()
+            self.posterior_sum_offtarget_base = posterior_1d[29:34].sum()
+
+        else:
+            if self.replay_target_arm == 1:
+                self.posterior_sum_target = posterior_1d[20:25].sum()
+                self.posterior_sum_offtarget = posterior_1d[36:41].sum()   
+                #if self.msg_counter % 1000 == 0:
+                #    print('no config arm1',self.posterior_sum_target,self.posterior_sum_offtarget)         
+            
+            elif self.replay_target_arm == 2:
+                self.posterior_sum_target = posterior_1d[36:41].sum()
+                self.posterior_sum_offtarget = posterior_1d[20:25].sum()   
+                #if self.msg_counter % 1000 == 0:
+                #    print('no config arm2',self.posterior_sum_target,self.posterior_sum_offtarget)     
 
         #comment out these lines
         # calculate sum of target segment
-        self.posterior_sum_target = posterior_1d[self.config['ripple_conditioning']['replay_target'][0]:
-                                            self.config['ripple_conditioning']['replay_target'][1] + 1].sum()
-        # calculate sum of off-target segment
-        self.posterior_sum_offtarget = posterior_1d[self.config['ripple_conditioning']['replay_offtarget'][0]:
-                                            self.config['ripple_conditioning']['replay_offtarget'][1] + 1].sum()
+        #self.posterior_sum_target = posterior_1d[self.config['ripple_conditioning']['replay_target'][0]:
+        #                                    self.config['ripple_conditioning']['replay_target'][1] + 1].sum()
+        ## calculate sum of off-target segment
+        #self.posterior_sum_offtarget = posterior_1d[self.config['ripple_conditioning']['replay_offtarget'][0]:
+        #                                    self.config['ripple_conditioning']['replay_offtarget'][1] + 1].sum()
+        #if self.msg_counter % 1000 == 0:
+        #    print('use config',self.posterior_sum_target,self.posterior_sum_offtarget)
 
     def process_next_data(self):
         spike_dec_msg = self.spike_dec_interface.__next__()
@@ -1895,6 +1916,7 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
                 self.posterior, self.likelihood = self.clusterless_estimator.increment_no_spike_bin()
 
             self.update_posterior_stats()
+            # note: replace self.posterior_arm_sum[0][7] and arm 8 with target base
             self.mpi_send.send_posterior_message(self.decoder_timestamp - self.decoder_bin_delay * self.time_bin_size,
                                                  self.spike_timestamp, 
                                                  self.posterior_sum_target, self.posterior_sum_offtarget,
@@ -1902,7 +1924,8 @@ class PPDecodeManager(realtime_base.BinaryRecordBaseWithTiming):
                                                  self.posterior_arm_sum[0][1], self.posterior_arm_sum[0][2],
                                                  self.posterior_arm_sum[0][3], self.posterior_arm_sum[0][4],
                                                  self.posterior_arm_sum[0][5], self.posterior_arm_sum[0][6],
-                                                 self.posterior_arm_sum[0][7], self.posterior_arm_sum[0][8],
+                                                 self.posterior_sum_target_base,
+                                                 self.posterior_sum_offtarget_base,
                                                  self.spike_count, self.crit_ind, self.posterior_max, self.rank,
                                                  self.enc_cred_int_array[0], self.enc_cred_int_array[1],
                                                  self.enc_cred_int_array[2], self.enc_cred_int_array[3],

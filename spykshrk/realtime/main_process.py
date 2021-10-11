@@ -523,7 +523,12 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         self.target_sum_avg_1 = 0
         self.target_sum_avg_2 = 0
         self.offtarget_sum_avg_1 = 0
-        self.offtarget_sum_avg_2 = 0        
+        self.offtarget_sum_avg_2 = 0
+        self.target_base_sum_avg_1 = 0
+        self.offtarget_base_sum_avg_1 = 0
+        self.target_base_sum_array_1 = np.zeros((self.post_sum_sliding_window,))
+        self.offtarget_base_sum_array_1 = np.zeros((self.post_sum_sliding_window,))
+
         # initialize with single 1 so that first pass throught posterior_sum works
         self.norm_posterior_arm_sum_1 = np.asarray([0, 1, 0, 0, 0, 0, 0, 0, 0])
         self.norm_posterior_arm_sum_2 = np.asarray([0, 1, 0, 0, 0, 0, 0, 0, 0])
@@ -554,6 +559,8 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         self.ripple_num_tet_above = 0
         self.ripple_tet_num_array = np.zeros((self.post_sum_sliding_window,))
         self.ripple_tet_num_avg = 0
+        self.target_base_post = 0
+        self.offtarget_base_post = 0
 
         self.velocity = 0
         self.linearized_position = 0
@@ -616,7 +623,13 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         self.ripple_bin_count = 0
         self.other_arm_thresh = self.config['ripple_conditioning']['other_arm_threshold']
         self.second_post_sum_thresh = self.config['ripple_conditioning']['second_post_sum_thresh']
-        self.other_arms = self.config['ripple_conditioning']['replay_non_target_arm']
+        # comment out for 2 arms
+        #self.other_arms = self.config['ripple_conditioning']['replay_non_target_arm']
+        # use target to define non target arm - works for 2 arms
+        if self.replay_target_arm == 1:
+            self.other_arms = [2]
+        elif self.replay_target_arm == 2:
+            self.other_arms = [1]        
 
         # for spike count average
         if self.config['ripple_conditioning']['session_type'] == 'run':
@@ -651,7 +664,10 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
 
         # instructive task
         self.instructive = self.config['ripple_conditioning']['instructive']
+        self.instructive_new_arm = 1
         self.position_limit = 1
+        self.last_targets = np.array([0,0,0])
+        self.last_target_counter = 0
 
         # make arm_coords conditional on number of arms
         self.number_arms = self.config['pp_decoder']['number_arms']
@@ -776,9 +792,11 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
 
         return num_above
 
+    # dont set replay target arm here - need to be able to change for instructive task
+
     def process_gui_request_message(self, message):
         if isinstance(message, GuiMainParameterMessage):
-            self.replay_target_arm = message.target_arm
+            #self.replay_target_arm = message.target_arm
             self.posterior_arm_threshold = message.posterior_threshold
             self.update_n_threshold(message.num_above_threshold)
             self.max_center_well_dist = message.max_center_well_distance
@@ -805,7 +823,8 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
 
         #remove posterior_time_bin from printing b/c we arent using it now
 
-        if self.taskState == 2 and self.linearized_position<8:
+        #if self.taskState == 2 and self.linearized_position<8:
+        if self.taskState == 2 and self.center_well_proximity:
             print('reward count. arm1:',self.arm1_replay_counter,'arm2:',self.arm2_replay_counter)
             print('max posterior in arm:', arm)
             print('position:', np.around(self.linearized_position, decimals=2),
@@ -861,19 +880,26 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
             # 5-9-21: add ripple requirement - number of tets and velocity
             # self.ripple_num_tet_above>=self._ripple_n_above_thresh
             # self.velocity < self.ripple_detect_velocity
+            # 9-6-21 remove not instructive
+            # note: for instructive task, arm is hard coded below when calling statescripte_message function
+
             if (self.taskState == 2 and self.shortcut_message_arm == self.replay_target_arm and
                 (self.bin_timestamp_1 > self._trodes_message_lockout_timestamp + self._trodes_message_lockout)
-                and self.reward_mode == "replay" and self.shortcut_msg_on and not self.instructive and 
+                and self.reward_mode == "replay" and self.shortcut_msg_on and 
                 self.center_well_proximity):
                 
-                mask = np.logical_and(
-                    self.lk_argmaxes >= self.arm_bounds[0],
-                    self.lk_argmaxes <= self.arm_bounds[1]
-                )
-                tetrode_ids = self.enc_cred_int_array[mask]
-                tetrode_ids = tetrode_ids[tetrode_ids != 0]
-                if np.unique(tetrode_ids).shape[0] >= self.min_unique_tets:
-                    print('number tets after likelihood filter',np.unique(tetrode_ids).shape[0])
+                # mask = np.logical_and(
+                #     self.lk_argmaxes >= self.arm_bounds[0],
+                #     self.lk_argmaxes <= self.arm_bounds[1]
+                # )
+                # tetrode_ids = self.enc_cred_int_array[mask]
+                # tetrode_ids = tetrode_ids[tetrode_ids != 0]
+                # if np.unique(tetrode_ids).shape[0] >= self.min_unique_tets:
+                #     print('number tets after likelihood filter',np.unique(tetrode_ids).shape[0])
+
+                # for instructive try only filtering once on unique tets
+                if np.nonzero(np.unique(self.enc_cred_int_array))[0].shape[0] >= self.min_unique_tets:
+                    print('unique tets',np.nonzero(np.unique(self.enc_cred_int_array))[0].shape[0])                
 
                     # NOTE: we can now replace this with the actual shortcut message!
                     # turn off for head direction feedback
@@ -899,6 +925,36 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
                     #self._trodes_message_lockout_timestamp = self.lfp_timestamp
                     # 2 decoders
                     self._trodes_message_lockout_timestamp = self.bin_timestamp_1
+
+                    # for instructive task reset target arm with random number
+                    if self.instructive:
+                        print('INSTRUCTIVE: reward target',self.replay_target_arm)
+                        if self.instructive_new_arm == 1:
+                            self.last_target_counter += 1
+                            # if all 1s now 2
+                            three_last_arm1 = np.all(self.last_targets == 1)
+                            three_last_arm2 = np.all(self.last_targets == 2)
+                            if three_last_arm1:
+                                print('INSTRUCTIVE: switch to arm 2')
+                                self.replay_target_arm = 2
+                                self.last_targets[np.mod(self.last_target_counter,3)] = self.replay_target_arm
+                            # if all 2s now 1
+                            elif three_last_arm2:
+                                print('INSTRUCTIVE: switch to arm 1')
+                                self.replay_target_arm = 1
+                                self.last_targets[np.mod(self.last_target_counter,3)] = self.replay_target_arm
+                            #otherwise random number
+                            else:
+                                self.replay_target_arm = np.random.choice([1,2],1)[0]
+                                self.last_targets[np.mod(self.last_target_counter,3)] = self.replay_target_arm
+                            print('INSTRUCTIVE: new target arm',self.replay_target_arm,self.last_targets)
+                            self.instructive_new_arm = 0
+                            # write to set instructive_new_arm file to 0
+                            with open("config/instructive_new_arm.txt","a") as instructive_new_file:
+                                try:
+                                    instructive_new_file.write(str(self.instructive_new_arm)+'\n')
+                                finally: 
+                                    instructive_new_file.close()
 
             # # to make whitenoise for incorrect arm
             # elif (self.taskState == 2 and self.shortcut_message_arm == self.replay_non_target_arm
@@ -1014,6 +1070,7 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
 
     # MEC: this function sums the posterior during each ripple, then sends shortcut message
     # need to add location filter so it only sends message when rat is at rip/wait well - no, that is in statescript
+    # note: now arm7 and arm8 are target base
     def posterior_sum(
         self, bin_timestamp, spike_timestamp, target, offtarget, box,
         arm1, arm2, arm3, arm4, arm5, arm6, arm7, arm8, spike_count, crit_ind, posterior_max,
@@ -1038,6 +1095,8 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
         self.dec_rank = dec_rank
         self.target_post = target
         self.offtarget_post = offtarget
+        self.target_base_post = arm7
+        self.offtarget_base_post = arm8
         self.tet1 = tet1
         self.tet2 = tet2
         self.tet3 = tet3
@@ -1130,6 +1189,7 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
                     f.seek(-2, os.SEEK_CUR)
                 self.taskState = int(f.readline().decode()[0:1])
             print('main taskState:',self.taskState)
+            print('config:',self.config['trodes']['config_file'])
 
             # with open('config/angle_range.txt', 'rb') as angle_range_file:
             #     fd = angle_range_file.fileno()
@@ -1148,21 +1208,51 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
             print('angle parameters:',self.within_angle_range,self.min_duration_head_angle,
                 'well angle',self.to_well_angle_range)
 
-            if self.decoder_1_count % 1200 == 0:
-                print('posterior threshold:', self.posterior_arm_threshold,
-                    'rip num tets',self._ripple_n_above_thresh,'ripple vel', self.ripple_detect_velocity, 
-                    'reward mode', self.reward_mode,'shortcut msg:',self.shortcut_msg_on,'target arm:',self.replay_target_arm,
-                    'position limit:',self.position_limit,'well dist max (cm)',self.max_center_well_dist)            
+            with open('config/instructive_new_arm.txt', 'rb') as f:
+                fd = f.fileno()
+                fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK)
+                f.seek(-2, os.SEEK_END)
+                while f.read(1) != b'\n':
+                    f.seek(-2, os.SEEK_CUR)            
+                self.instructive_new_arm = int(f.readline().decode()[0:1])
+
+        if self.decoder_1_count % 1200 == 0:
+            print('posterior threshold:', self.posterior_arm_threshold,
+                'rip num tets',self._ripple_n_above_thresh,'ripple vel', self.ripple_detect_velocity, 
+                'reward mode', self.reward_mode,'shortcut msg:',self.shortcut_msg_on,'target arm:',self.replay_target_arm,
+                'position limit:',self.position_limit,'well dist max (cm)',self.max_center_well_dist)
+            print('INSTRUCTIVE: choose new arm',self.instructive_new_arm)            
+
+        if self.instructive and self.decoder_1_count % 400 == 0 and self.instructive_new_arm == 1:    
+            # write to file
+            print('INSTRUCTIVE: write target arm to file')
+            with open("config/instructive_target_arm.txt","a") as instructive_target_file:
+                try:
+                    instructive_target_file.write(str(self.replay_target_arm)+'\n')
+                finally: 
+                    instructive_target_file.close()
 
         # to test shortcut message delay
-        #if self.decoder_1_count % 800 == 0 and self.taskState == 1:
-        #    print('TESTING! bin timestamp:', self.bin_timestamp, '1st spike timestamp:', self.spike_timestamp,
-        #          'lfp timestamp:', self.lfp_timestamp, 
-        #          'delay bin:', np.around((self.lfp_timestamp - self.bin_timestamp_1) / 30, decimals=1),
-        #          'delay spike:', np.around((self.lfp_timestamp - self.spike_timestamp) / 30, decimals=1))            
-        #    #networkclient.sendStateScriptShortcutMessage(14)
-        #    networkclient.send_statescript_shortcut_message(14)
-        #    print('TESTING: statescript trigger 14', flush=True)            
+        # if self.decoder_1_count % 2400 == 0 and self.taskState == 2:
+        #     print('TESTING! bin timestamp:', self.bin_timestamp, '1st spike timestamp:', self.spike_timestamp,
+        #           'lfp timestamp:', self.lfp_timestamp, 
+        #           'delay bin:', np.around((self.lfp_timestamp - self.bin_timestamp_1) / 30, decimals=1),
+        #           'delay spike:', np.around((self.lfp_timestamp - self.spike_timestamp) / 30, decimals=1))  
+        #     print('TESTING, reward target',self.replay_target_arm)          
+        #     #networkclient.sendStateScriptShortcutMessage(14)
+        #     networkclient.send_statescript_shortcut_message(14)
+        #     print('TESTING: statescript trigger 14', flush=True)            
+        #     if self.instructive:
+        #         if self.instructive_new_arm == 1:
+        #             self.replay_target_arm = np.random.choice([1,2],1)[0]
+        #             print('INSTRUCTIVE: new target arm',self.replay_target_arm)
+        #             self.instructive_new_arm = 0
+        #             # write to set instructive_new_arm file to 0
+        #             with open("config/instructive_new_arm.txt","a") as instructive_new_file:
+        #                 try:
+        #                     instructive_new_file.write(str(self.instructive_new_arm)+'\n')
+        #                 finally: 
+        #                     instructive_new_file.close()
 
 
         # not currently using this - might use in future
@@ -1217,6 +1307,14 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
             self.offtarget_sum_array_1[np.mod(self.decoder_1_count,
                                         self.post_sum_sliding_window)] = self.offtarget_post
             self.offtarget_sum_avg_1 = self.offtarget_sum_array_1.sum()/len(self.offtarget_sum_array_1)
+
+            self.target_base_sum_array_1[np.mod(self.decoder_1_count,
+                                        self.post_sum_sliding_window)] = self.target_base_post
+            self.target_base_sum_avg_1 = self.target_base_sum_array_1.sum()/len(self.target_base_sum_array_1)
+            self.offtarget_base_sum_array_1[np.mod(self.decoder_1_count,
+                                        self.post_sum_sliding_window)] = self.offtarget_base_post
+            self.offtarget_base_sum_avg_1 = self.offtarget_base_sum_array_1.sum()/len(self.offtarget_base_sum_array_1)
+
             self.spike_count_array_1[np.mod(self.decoder_1_count,
                                     self.post_sum_sliding_window)] = self.spike_count
             self.spike_count_1 = self.spike_count_array_1.sum()
@@ -1288,10 +1386,10 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
 
         # need to do in separately for each decoder
         # new variables for each arm posterior - for function to send statescript message at end of ripple lockout
+        # note: need to remove arm7 and arm8
         if self.dec_rank == self.config['rank']['decoder'][0]:
             new_posterior_sum = np.asarray([self.box_post, self.arm1_post, self.arm2_post, self.arm3_post,
-                                        self.arm4_post, self.arm5_post, self.arm6_post, self.arm7_post,
-                                        self.arm8_post])
+                                        self.arm4_post, self.arm5_post, self.arm6_post,0,0])
 
             # for whole ripple sum - add to this array but dont sum or normalize
             # NEW 10-17-20: calculate average here
@@ -1419,37 +1517,100 @@ class StimDecider(realtime_base.BinaryRecordBaseWithTiming):
                             self.posterior_sum_statescript_message(2, networkclient) 
 
         elif self.config['ripple_conditioning']['number_of_decoders'] == 1:
-            # send message for end of arm only in target_sum_avg_1
-            # now requires both other arm and box to be < 0.2
-            if (self.target_sum_avg_1 > self.posterior_arm_threshold and not self._in_lockout):
-                #self._in_lockout = True
-                if (np.all(self.norm_posterior_arm_sum_1[self.other_arms]<self.other_arm_thresh)
-                    and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
-                    #print('arm1 end detected decode 1',self.target_sum_avg_1 ,self.target_sum_avg_2)
-                    self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
-                    #print(self._in_lockout)
-                    self._in_lockout = True
-                    self._last_lockout_timestamp = self.bin_timestamp_1
-                    #self._lockout_count += 1
-                    # unique tets that are non-zero
-                    #np.nonzero(np.unique(self.enc_cred_int_array))[0].shape[0]
+            if self.instructive:
+                if (self.target_sum_avg_1 > self.posterior_arm_threshold and
+                    self.target_base_sum_avg_1 > self.posterior_arm_threshold and not self._in_lockout):
+                    #self._in_lockout = True
+                    # for instructive need to replace other_arms and replay target arm
+                    if (np.all(self.norm_posterior_arm_sum_1[2]<self.other_arm_thresh)
+                        and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
+                        #print('arm1 end detected decode 1',self.target_sum_avg_1 ,self.target_sum_avg_2)
+                        self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
+                        #print(self._in_lockout)
+                        self._in_lockout = True
+                        self._last_lockout_timestamp = self.bin_timestamp_1
+                        self.posterior_sum_statescript_message(1, networkclient)
+                elif (self.offtarget_sum_avg_1 > self.posterior_arm_threshold and
+                      self.offtarget_base_sum_avg_1 > self.posterior_arm_threshold and not self._in_lockout):
+                    #self._in_lockout = True
+                    #print('arm2 end')
+                    if (np.all(self.norm_posterior_arm_sum_1[1]<self.other_arm_thresh)
+                        and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
+                        #print('arm2 end detected decode 1',self.offtarget_sum_avg_1 ,self.offtarget_sum_avg_2)
+                        self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
+                        #print(self._in_lockout)
+                        self._in_lockout = True
+                        self._last_lockout_timestamp = self.bin_timestamp_1
+                        #self._lockout_count += 1
+                        self.posterior_sum_statescript_message(2, networkclient)
 
-                    # this was 1 before
-                    self.posterior_sum_statescript_message(self.replay_target_arm, networkclient)    
+            else:
+                # send message for end of arm only in target_sum_avg_1
+                # now requires both other arm and box to be < 0.2
+                # for instructuve target = 1, offtarget = 2
+                if (self.target_sum_avg_1 > self.posterior_arm_threshold and not self._in_lockout):
+                    #self._in_lockout = True
+                    # for instructive need to replace other_arms and replay target arm
+                    if self.instructive:
+                        #if (np.all(self.norm_posterior_arm_sum_1[2]<self.other_arm_thresh)
+                        #    and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
+                        #    #print('arm1 end detected decode 1',self.target_sum_avg_1 ,self.target_sum_avg_2)
+                        #    self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
+                        #    #print(self._in_lockout)
+                        #    self._in_lockout = True
+                        #    self._last_lockout_timestamp = self.bin_timestamp_1
+                        #    self.posterior_sum_statescript_message(1, networkclient)
+                        pass
+                    else:
+                        if (np.all(self.norm_posterior_arm_sum_1[self.other_arms]<self.other_arm_thresh)
+                            and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
+                            #print('arm1 end detected decode 1',self.target_sum_avg_1 ,self.target_sum_avg_2)
+                            self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
+                            #print(self._in_lockout)
+                            self._in_lockout = True
+                            self._last_lockout_timestamp = self.bin_timestamp_1
+                            #self._lockout_count += 1
+                            # unique tets that are non-zero
+                            #np.nonzero(np.unique(self.enc_cred_int_array))[0].shape[0]
+                            self.posterior_sum_statescript_message(self.replay_target_arm, networkclient) 
 
-            elif (self.offtarget_sum_avg_1 > self.posterior_arm_threshold and not self._in_lockout):
-                #self._in_lockout = True
-                #print('arm2 end')
-                if (np.all(self.norm_posterior_arm_sum_1[self.replay_target_arm]<self.other_arm_thresh)
-                    and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
-                    #print('arm2 end detected decode 1',self.offtarget_sum_avg_1 ,self.offtarget_sum_avg_2)
-                    self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
-                    #print(self._in_lockout)
-                    self._in_lockout = True
-                    self._last_lockout_timestamp = self.bin_timestamp_1
-                    #self._lockout_count += 1
-                    # this was 2 before
-                    self.posterior_sum_statescript_message(self.other_arms[0], networkclient)
+                        # this was 1 before
+                        # want to set to 1 and 2 for instructive task
+                        #if self.instructive:
+                        #    self.posterior_sum_statescript_message(1, networkclient)
+                        #else:
+                        #    self.posterior_sum_statescript_message(self.replay_target_arm, networkclient)    
+
+                elif (self.offtarget_sum_avg_1 > self.posterior_arm_threshold and not self._in_lockout):
+                    #self._in_lockout = True
+                    #print('arm2 end')
+                    if self.instructive:
+                        #if (np.all(self.norm_posterior_arm_sum_1[1]<self.other_arm_thresh)
+                        #    and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
+                        #    #print('arm2 end detected decode 1',self.offtarget_sum_avg_1 ,self.offtarget_sum_avg_2)
+                        #    self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
+                        #    #print(self._in_lockout)
+                        #    self._in_lockout = True
+                        #    self._last_lockout_timestamp = self.bin_timestamp_1
+                        #    #self._lockout_count += 1
+                        #    self.posterior_sum_statescript_message(2, networkclient)
+                        pass
+                    else:
+                        if (np.all(self.norm_posterior_arm_sum_1[self.replay_target_arm]<self.other_arm_thresh)
+                            and self.norm_posterior_arm_sum_1[0]<self.other_arm_thresh):
+                            #print('arm2 end detected decode 1',self.offtarget_sum_avg_1 ,self.offtarget_sum_avg_2)
+                            self.norm_posterior_arm_sum = self.norm_posterior_arm_sum_1
+                            #print(self._in_lockout)
+                            self._in_lockout = True
+                            self._last_lockout_timestamp = self.bin_timestamp_1
+                            #self._lockout_count += 1
+                            self.posterior_sum_statescript_message(self.other_arms[0], networkclient)
+                        
+                        ## this was 2 before
+                        #if self.instructive:
+                        #    self.posterior_sum_statescript_message(2, networkclient)
+                        #else:
+                        #    self.posterior_sum_statescript_message(self.other_arms[0], networkclient)
 
 
         # end lockout for non-local event
