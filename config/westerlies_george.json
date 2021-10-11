@@ -7,22 +7,22 @@
         "decoder": [1],
         "ripples": [2],
         "gui": 3,
-        "encoders": [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50]
+        "encoders": [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
     },
 
     "rank_settings": {
-        "enable_rec": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50],
+        "enable_rec": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21],
         "enable_profiler": []
     },
 
     "tetrode_split": {
-        "1st_half": [1,2,3,4,5,7,8,9,10,13,14,16,23,18,19,21,22,31,24,25,26,27,28,29,30,32,33,34,35,36,38,39,40,41,42,43,45,49,50,52,53,55,59,60,63,64],
+        "1st_half": [32,33,34,35,36,38,39,40,42,43,45,49,50,52,53,55,59,60],
         "2nd_half": []
     },
 
     "files": {
         "output_dir": "/media/lorenlab/84fc44d3-77e1-4289-a1bc-dc9525326ee9/spykshrk_output",
-        "prefix": "20210817_george_06_r3",
+        "prefix": "20210830_george_06_r3_play",
         "rec_postfix": "bin_rec",
         "profile_postfix": "pstats",
         "timing_postfix": "timing",
@@ -48,9 +48,9 @@
         "previous_spike_count_std": 0.931,
         "number_of_decoders": 1,
         "replay_target_arm": 2,
-        "replay_non_target_arm": [1],
-        "replay_target": [36,40],
-        "replay_offtarget": [20,24],
+        "replay_non_target_arm": [0],
+        "replay_target": [0,0],
+        "replay_offtarget": [0,0],
         "target_arm_position": [0,40],
         "condition_rip_thresh": 100,
         "shortcut_msg_lockout": 60000,
@@ -60,7 +60,7 @@
         "enc_cred_int_max": 5,
         "min_unique_tets": 2,
         "ripple_lockout": 3000,
-        "load_encoding": false
+        "load_encoding": true
     },
 
     "reward_mode" : "replay",
@@ -97,10 +97,10 @@
             "update_custom_baseline": false
         },
         "CustomRippleBaselineMeanMessage": {
-            " 64 ": 15 
+            " 34 ": 15 
         },
         "CustomRippleBaselineStdMessage": {
-            " 64 ": 8 
+            " 34 ": 8 
         }
     }, 
 
@@ -128,7 +128,7 @@
             "std": 5
         },
         "vel": 10,
-        "spk_amp": 150,
+        "spk_amp": 125,
         "noise_max_amp": 1500,
         "dead_channels": {
             "1": [0],
@@ -178,7 +178,7 @@
     },
 
     "trodes_network": {
-        "decoding_tetrodes": [1,2,3,4,5,7,8,9,10,13,14,16,23,18,19,21,22,31,24,25,26,27,28,29,30,32,33,34,35,36,38,39,40,41,42,43,45,49,50,52,53,55,59,60,63,64],
-        "ripple_tetrodes": [64]
+        "decoding_tetrodes": [32,33,34,35,36,38,39,40,42,43,45,49,50,52,53,55,59,60],
+        "ripple_tetrodes": [34]
     }
 }

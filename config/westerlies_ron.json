@@ -22,7 +22,7 @@
 
     "files": {
         "output_dir": "/media/lorenlab/84fc44d3-77e1-4289-a1bc-dc9525326ee9/spykshrk_output",
-        "prefix": "20210817_ron_08_r5",
+        "prefix": "20210902_ron_06_r3_play",
         "rec_postfix": "bin_rec",
         "profile_postfix": "pstats",
         "timing_postfix": "timing",
@@ -47,20 +47,20 @@
         "previous_spike_count_avg": 1.312,
         "previous_spike_count_std": 0.931,
         "number_of_decoders": 1,
-        "replay_target_arm": 2,
-        "replay_non_target_arm": [1],
-        "replay_target": [36,40],
-        "replay_offtarget": [20,24],
+        "replay_target_arm": 1,
+        "replay_non_target_arm": [0],
+        "replay_target": [0,0],
+        "replay_offtarget": [0,0],
         "target_arm_position": [0,40],
         "condition_rip_thresh": 100,
-        "shortcut_msg_lockout": 60000,
+        "shortcut_msg_lockout": 900000,
         "shortcut_msg_on" : true,
         "center_well_position": [449,330],
         "max_center_well_dist": 17,
         "enc_cred_int_max": 5,
         "min_unique_tets": 2,
         "ripple_lockout": 3000,
-        "load_encoding": false
+        "load_encoding": true
     },
 
     "reward_mode" : "replay",
